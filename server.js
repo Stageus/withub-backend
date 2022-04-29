@@ -19,9 +19,9 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const main = require('./router/main.js');
+const account = require('./router/account.js');
 
-app.use('/', main);
+app.use('/account', account);
 
 app.listen(port, (req, res) => {
     console.log('server start at port', port);

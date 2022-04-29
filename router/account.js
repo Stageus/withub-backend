@@ -1,4 +1,7 @@
 const router = require('express').Router();
+const database = require('../module/database.js');
+const tokenVerify = require('../module/tokenVerify.js');
+const axios = require('axios');
 
 router.get('login', async(req, res) => {
     const id = req.body.id;
@@ -56,6 +59,12 @@ router.post('', async(req, res) => {
     const area = req.body.area;
     const committer = req.body.committer;
     const repository = req.body.repository;
+    const response = await axios.get(process.env.GITHUB_URL + '/users/' + committer, {
+        headers: {
+            AUthorization: process.env.GITHUB_TOKEN,
+        }
+    });
+    const avatar_url = response.data.avatar_url;
     const result = {
         success: false,
         message: '',
@@ -82,9 +91,21 @@ router.post('', async(req, res) => {
 
     const nicknameRegexp = /^[a-zA-Z가-힣0-9]{2,10}$/; // 2~10자의 한글, 영어, 숫자
     if (!nicknameRegexp.test(nickname)) {
-        result.message = '이름은 2~10자의 한글, 영어, 숫자로만 이루어져야 합니다.';
+        result.message = '닉네임은 2~10자의 한글, 영어, 숫자로만 이루어져야 합니다.';
         return res.send(result);
     }
+
+    const insertUserQuery = `INSERT INTO account.info(area, id, pw, nickname, email, committer, avatar_url) VALUES ($1, $2, $3, $4, $5, $6, $7);`;
+    const insertUser = await database(insertUserQuery, [area, id, pw, nickname, email, committer, avatar_url]);
+
+    if (insertUser.success) {
+
+    }
+    else {
+        result.message = 'DB 접근 실패. 재시도 해주세요.'
+    }
+
+    return res.send(result);
 });
 
 module.exports = router;
