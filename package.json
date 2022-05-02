@@ -16,6 +16,8 @@
     "express": "^4.17.3",
     "jsonwebtoken": "^8.5.1",
     "node-schedule": "^2.1.0",
-    "pg": "^8.7.3"
+    "nodemailer": "^6.7.4",
+    "pg": "^8.7.3",
+    "pg-format": "^1.0.4"
   }
 }
