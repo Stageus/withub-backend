@@ -16,11 +16,14 @@ const database = async(query, value) => {
         'detail': '',
     }
 
+    console.log(config);
+
     try {
         await client.connect(); 
         const queryResult = await client.query(query, value);
         result.success = true;
         result.list = queryResult.rows;
+        console.log(queryResult.rows);
     }
     catch (err) {
         console.log(err);

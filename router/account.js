@@ -3,7 +3,6 @@ const database = require('../module/database.js');
 const tokenVerify = require('../module/tokenVerify.js');
 const sendMail = require('../module/sendMail.js');
 const axios = require('axios');
-const format = require('pg-format');
 
 router.get('login', async(req, res) => {
     const id = req.body.id;
@@ -31,7 +30,7 @@ router.get('login', async(req, res) => {
             else { // 로그인 성공
                 const jwtToken = jwt.sign({
                     account_idx: queryResult.list[0].account_idx,
-                }, process.env.LOGIN_ACCESS_KEY, {
+                }, process.env.ACCESS_KEY, {
                     expiresIn: "14d",
                     issuer: "stageus",
                 });
@@ -53,6 +52,516 @@ router.get('login', async(req, res) => {
     }
 });
 
+router.post('/mail/auth', async(req, res) => {
+    const email = req.body.email;
+    const auth = req.body.auth;
+    const token = req.body.token;
+    const result = {
+        success: false,
+        message: '',
+    }
+    if (!auth || !token) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+    if (verify.token.email === email && verify.token.auth === auth) {
+        result.success = true;
+        result.message = '인증이 확인되었습니다.';
+    }
+    else
+        result.message = '인증번호가 일치하지 않습니다.';
+
+    return res.send(result);
+});
+
+router.post('/mail', async(req, res) => {
+    const email = req.body.email;
+    const result = {
+        success: false,
+        message: '',
+        token: '',
+    }
+    if (!email) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const emailCheckQuery = 'SELECT COUNT(*) FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE email = $1);';
+    const emailCheck = await database(emailCheckQuery, [email]);
+    
+    if (!emailCheck.success) {
+        result.message = 'DB 접근 오류. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    if (emailCheck.success && emailCheck.list !== []) {
+        result.message = '이미 가입정보가 존재하는 이메일 입니다.';
+        return res.send(result);
+    }
+
+    let auth = '';
+    for (let i = 0; i < 4; i++)
+        auth += String(Math.floor(Math.random() * 10));
+
+    const mailTitle = `[WITHUB] 회원가입 인증번호 메일입니다.`
+    const mailContents = `인증번호는 ${randomNumber} 입니다. 정확하게 입력해주세요.`;
+    sendMail(email, mailTitle, mailContents);
+
+    const jwtToken = jwt.sign({
+        email: email,
+        auth: auth,
+    }, process.env.ACCESS_KEY, {
+        expiresIn: "14d",
+        issuer: "stageus",
+    });
+    result.success = true;
+    result.meesage = '메일 전송 완료. 메일을 확인해주세요.';
+    result.token = jwtToken;
+
+    return res.send(result);
+});
+
+router.post('/duplicate/id', async(req, res) => {
+    const id = req.body.id;
+    const result = {
+        success: false,
+        message: '',
+    }
+
+    if (!id) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const duplicateCheckQuery = `SELECT COUNT(*) FROM account.info WHERE id = $1;`;
+    const duplicateCheck = await database(duplicateCheckQuery, [id]);
+
+    if (parseInt(duplicateCheck.list[0].count) === 0) {
+        result.success = true;
+        result.message = '사용 가능한 아이디 입니다.';
+    }
+    else {
+        result.message = '이미 존재하는 아이디 입니다.';
+    }
+
+    return res.send(result);
+});
+
+router.post('/duplicate/nickname', async(req, res) => {
+    const nickname = req.body.nickname;
+    const result = {
+        success: false,
+        message: '',
+    }
+
+    if (!nickname) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const duplicateCheckQuery = `SELECT COUNT(*) FROM account.info WHERE nickname = $1;`;
+    const duplicateCheck = await database(duplicateCheckQuery, [nickname]);
+
+    if (parseInt(duplicateCheck.list[0].count) === 0) {
+        result.success = true;
+        result.message = '사용 가능한 아이디 입니다.';
+    }
+    else {
+        result.message = '이미 존재하는 아이디 입니다.';
+    }
+
+    return res.send(result);
+});
+
+router.post('/committer', async(req, res) => {
+    const committer = req.body.committer;
+    const result = {
+        success: false,
+        message: '',
+    }
+
+    if (!committer) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const response = await axios.get(`${process.env.GITHUB_URL}/users/${committer}`, {
+        headers: {
+            Authorization: process.env.GITHUB_TOKEN,
+        }
+    });
+
+    if (response.data.login === committer) {
+        result.success = true;
+        result.message = '사용 가능한 깃허브 닉네임 입니다.';
+    }
+    else {
+        result.message = '유효하지 않은 깃허브 닉네임 입니다.'
+    }
+
+    return res.send(result);
+});
+
+router.post('/github', async(req, res) => {
+    const committer = req.body.committer;
+    const owner = req.body.owner;
+    const name = req.body.name;
+    const result = {
+        success: false,
+        message: '',
+    }
+
+    if (!committer || !owner || !name) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const response = await axios.get(`${process.env.GITHUB_URL}/repos/${owner}/${name}/contributors`, {
+        headers: {
+            Authorization: process.env.GITHUB_TOKEN,
+        }
+    });
+
+    result.message = '사용 불가능한 레포지토리 입니다.\n본인이 레포지토리의 contributor가 맞는지, 레포지토리의 정보가 틀리진 않은지 확인해 주세요.';
+    for (const user of response.data) {
+        if (user.login === committer) {
+            result.success = true;
+            result.message = '사용 가능한 레포지토리 입니다.';
+            break;
+        }
+    }
+
+    return res.send(result);
+});
+
+router.get('/pw/after', async(req, res) => {
+    const token = req.query.token;
+    const pw = req.query.pw;
+    const result = {
+        success: false,
+        message: '',
+    }
+
+    if (!token || !pw) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+    const checkPwQuery = 'SELECT pw FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE account_idx = $1);';
+    const checkPw = await database(checkPwQuery, [verify.token.account_idx]);
+
+    if (!checkPw.success) {
+        result.message = 'DB 접근 오류. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    if (checkPw.list[0].pw === pw)
+        result.success = true;
+    else
+        result.message = '비밀번호가 일치하지 않습니다.';
+
+    return res.send(result);
+});
+
+router.patch('pw/after', async(req, res) => {
+    const token = req.query.token;
+    const pw = req.query.pw;
+    const result = {
+        success: false,
+        message: '',
+    }
+
+    if (!token || !pw) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+    const updatePwQuery = 'UPDATE account.info SET pw = $1 WHERE account_idx = $2;';
+    const updatePw = await database(updatePwQuery, [pw, verify.token.account_idx]);
+
+    if (updatePw.success) 
+        result.success = true;
+    else
+        result.message = 'DB 접근 실패. 다시 시도해 주세요.';
+    
+    return res.send(result);
+});
+
+router.post('/id/auth', async(req, res) => {
+    const email = req.body.email;
+    const auth = req.body.auth;
+    const token = req.body.token;
+    const result = {
+        success: false,
+        message: '',
+        id: '',
+    }
+    if (!auth || !token) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+    if (verify.token.email === email && verify.token.auth === auth) {
+        const getIdQuery = `SELECT id FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE email = $1);`;
+        const getId = await database(getIdQuery, [email]);
+
+        if (getId.success && getId.list !== []) {
+            result.success = true;
+            result.id = getId.list[0].id;
+        }
+        else if (getId.success && getId.list === []) {
+            result.message = '입력하신 이메일에 해당하는 회원정보가 없습니다.';
+        }
+        else {
+            result.message = 'DB 연결 오류. 재시도 해주세요.';
+        }
+    }
+    else
+        result.message = '인증번호가 일치하지 않습니다.';
+
+    return res.send(result);
+});
+
+router.post('/id', async(req, res) => {
+    const email = req.body.email;
+    const result = {
+        success: false,
+        message: '',
+        token: '',
+    }
+    if (!email) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const emailCheckQuery = 'SELECT COUNT(*) FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE email = $1);';
+    const emailCheck = await database(emailCheckQuery, [email]);
+    
+    if (!emailCheck.success) {
+        result.message = 'DB 접근 오류. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    if (emailCheck.success && emailCheck.list === []) {
+        result.message = '입력하신 이메일에 해당하는 회원정보가 없습니다.';
+        return res.send(result);
+    }
+
+    let auth = '';
+    for (let i = 0; i < 4; i++)
+        auth += String(Math.floor(Math.random() * 10));
+
+    const mailTitle = `[WITHUB] 아이디찾기 인증번호 메일입니다.`
+    const mailContents = `인증번호는 ${randomNumber} 입니다. 정확하게 입력해주세요.`;
+    sendMail(email, mailTitle, mailContents);
+
+    const jwtToken = jwt.sign({
+        email: email,
+        auth: auth,
+    }, process.env.ACCESS_KEY, {
+        expiresIn: "14d",
+        issuer: "stageus",
+    });
+    result.success = true;
+    result.meesage = '메일 전송 완료. 메일을 확인해주세요.';
+    result.token = jwtToken;
+
+    return res.send(result);
+});
+
+router.post('/pw/auth', async(req, res) => {
+    const id = req.body.id;
+    const email = req.body.email;
+    const auth = req.body.auth;
+    const token = req.body.token;
+    const result = {
+        success: false,
+        message: '',
+    }
+    if (!auth || !token) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+    if (verify.token.email === email && verify.token.auth === auth) {
+        const getPwQuery = `SELECT COUNT(*) FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE email = $1 AND id = $2)`;
+        const getPw = await database(getPwQuery, [email, id]);
+
+        if (getPw.success && getPw.list !== []) {
+            result.success = true;
+        }
+        else if (getPw.success && getPw.list === []) {
+            result.message = '입력하신 정보에 해당하는 회원정보가 없습니다.';
+        }
+        else {
+            result.message = 'DB 연결 오류. 재시도 해주세요.';
+        }
+    }
+    else
+        result.message = '인증번호가 일치하지 않습니다.';
+
+    return res.send(result);
+});
+
+router.post('/pw', async(req, res) => {
+    const email = req.body.email;
+    const id = req.body.id;
+    const result = {
+        success: false,
+        message: '',
+        token: '',
+    }
+    if (!email || !id) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const emailCheckQuery = 'SELECT COUNT(*) FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE email = $1 AND id = $2);';
+    const emailCheck = await database(emailCheckQuery, [email, id]);
+    
+    if (!emailCheck.success) {
+        result.message = 'DB 접근 오류. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    if (emailCheck.success && emailCheck.list === []) {
+        result.message = '입력하신 이메일에 해당하는 회원정보가 없습니다.';
+        return res.send(result);
+    }
+
+    let auth = '';
+    for (let i = 0; i < 4; i++)
+        auth += String(Math.floor(Math.random() * 10));
+
+    const mailTitle = `[WITHUB] 비밀번호찾기 인증번호 메일입니다.`
+    const mailContents = `인증번호는 ${randomNumber} 입니다. 정확하게 입력해주세요.`;
+    sendMail(email, mailTitle, mailContents);
+
+    const jwtToken = jwt.sign({
+        email: email,
+        id: id,
+        auth: auth,
+    }, process.env.ACCESS_KEY, {
+        expiresIn: "14d",
+        issuer: "stageus",
+    });
+    result.success = true;
+    result.meesage = '메일 전송 완료. 메일을 확인해주세요.';
+    result.token = jwtToken;
+
+    return res.send(result);
+});
+
+router.patch('/pw', async(req, res) => {
+    const pw = req.body.pw;
+    const token = req.body.token;
+    const result = {
+        success: false,
+        message: '',
+    }
+
+    if (!pw || !token) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const pwRegexp1 = /[0-9]/; // 숫자 체크 정규표현식
+	const pwRegexp2 = /[a-zA-Z]/; // 영어 체크 정규표현식
+	const pwRegexp3 = /[~!@#$%^&*()_+|<>?:{}]/; // 특문 체크 정규표현식	
+    if (!pwRegexp1.test(pw) || !pwRegexp2.test(pw) || !pwRegexp3.test(pw) || pw.length < 8 || pw.length > 20) {
+        result.message = '비밀번호는 8~20자의 영문, 숫자, 특수문자를 만드시 포함하여야 합니다.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+    const updatePwQuery = 'UPDATE account.info SET pw = $1 WHERE email = $2 AND id = $3;';
+    const updatePw = await database(updatePwQuery, [pw, verify.token.email, verify.token.id]);
+
+    if (updatePw.success)
+        result.success = true;
+    else
+        result.message = 'DB 접근 실패. 다시 시도해 주세요.';
+
+    return res.send(result);
+});
+
+router.patch('/area', async(req, res) => {
+    const token = req.body.token;
+    const area = req.body.area;
+    const result = {
+        success: false,
+        message: '',
+    }
+
+    if (!token || !area) {
+        result.message = '에러 발생. 다시 입력해 주세요.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+    const updateAreaQuery = 'UPDATE account.info SET area_idx = $1 WHERE account_idx = $2;';
+    const updateArea = await database(updateAreaQuery, [area, verify.token.account_idx]);
+
+    if (updateArea.success)
+        result.success = true;
+    else
+        result.message = 'DB 접근 실패. 다시 시도해 주세요.';
+
+    return res.send(result);
+})
+
+router.delete('', async(req, res) => {
+    const token = req.body.token;
+    const result = {
+        success: false,
+        message: '',
+    }
+
+    if (!token) {
+        result.message = '에러 발생. 다시 입력해 주세요.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+    const deleteUserQuery = 'DELETE FROM account.info WHERE account_idx = $1;';
+    const deleteUser = await database(deleteUserQuery, [verify.token.account_idx]);
+
+    if (deleteUser.success) {
+        result.success = true;
+        result.message = '회원 탈퇴가 완료되었습니다.';
+    }
+    else
+        result.message = '삭제 실패, 재시도 해주세요.';
+});
+
+router.get('', async(req, res) => {
+    const token = req.query.token;
+    const result = {
+        success: false,
+        message: '',
+        today_commit: -1,
+        monthly_commit: [],
+        friend_avg: -1,
+        area_avg: -1,
+        tips: [],
+    }
+
+    if (!token) {
+        result.message = '에러 발생. 다시 입력해 주세요.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+
+    //TODO: 5/2 작업 필요
+});
+
 router.post('', async(req, res) => {
     const id = req.body.id;
     const pw = req.body.pw;
@@ -63,7 +572,7 @@ router.post('', async(req, res) => {
     const repository = req.body.repository;
     const response = await axios.get(process.env.GITHUB_URL + '/users/' + committer, {
         headers: {
-            AUthorization: process.env.GITHUB_TOKEN,
+            Authorization: process.env.GITHUB_TOKEN,
         }
     });
     const avatar_url = response.data.avatar_url;
@@ -119,113 +628,5 @@ router.post('', async(req, res) => {
 
     return res.send(result);
 });
-
-router.post('/mail', async(req, res) => {
-    const email = req.body.email;
-    const result = {
-        success: false,
-        message: '',
-        token: '',
-    }
-    if (!email) {
-        result.message = '에러 발생. 다시 시도해 주세요.';
-        return res.send(result);
-    }
-
-    let auth = '';
-    for (let i = 0; i < 4; i++)
-    auth += String(Math.floor(Math.random() * 10));
-
-    const mailTitle = `[WITHUB] 회원가입 인증번호 메일입니다.`
-    const mailContents = `인증번호는 ${randomNumber} 입니다. 정확하게 입력해주세요.`;
-    sendMail(email, mailTitle, mailContents);
-
-    const jwtToken = jwt.sign({
-        email: email,
-        auth: auth,
-    }, process.env.AUTH_ACCESS_KEY, {
-        expiresIn: "14d",
-        issuer: "stageus",
-    });
-    result.success = true;
-    result.meesage = isSend.message;
-    result.token = jwtToken;
-
-    return res.send(result);
-});
-
-router.get('/mail/auth', async(req, res) => {
-    const email = req.query.email;
-    const token = req.query.token;
-    const result = {
-        success: false,
-        message: '',
-    }
-    if (!email || !token) {
-        result.message = '에러 발생. 다시 시도해 주세요.';
-        return res.send(result);
-    }
-
-    const verify = await tokenVerify(token);
-    if (verify.token.email === email && verify.token.auth === auth)
-        result.success = true;
-    else
-        result.message = '인증번호가 일치하지 않습니다.';
-
-    return res.send(result);
-});
-
-router.post('/duplicate/id', async(req, res) => {
-    const id = req.body.id;
-    const result = {
-        success: false,
-        message: '',
-    }
-
-    if (!id) {
-        result.message = '에러 발생. 다시 시도해 주세요.';
-        return res.send(result);
-    }
-
-    const duplicateCheckQuery = `SELECT COUNT(*) FROM account.info WHERE id = $1;`;
-    const duplicateCheck = await database(duplicateCheckQuery, [id]);
-
-    if (parseInt(duplicateCheck.list[0].count) === 0) {
-        result.success = true;
-        result.message = '사용 가능한 아이디 입니다.';
-    }
-    else {
-        result.message = '이미 존재하는 아이디 입니다.';
-    }
-
-    return res.send(result);
-});
-
-router.post('/duplicate/nickname', async(req, res) => {
-    const nickname = req.body.nickname;
-    const result = {
-        success: false,
-        message: '',
-    }
-
-    if (!id) {
-        result.message = '에러 발생. 다시 시도해 주세요.';
-        return res.send(result);
-    }
-
-    const duplicateCheckQuery = `SELECT COUNT(*) FROM account.info WHERE nickname = $1;`;
-    const duplicateCheck = await database(duplicateCheckQuery, [nickname]);
-
-    if (parseInt(duplicateCheck.list[0].count) === 0) {
-        result.success = true;
-        result.message = '사용 가능한 아이디 입니다.';
-    }
-    else {
-        result.message = '이미 존재하는 아이디 입니다.';
-    }
-
-    return res.send(result);
-});
-
 
 module.exports = router;
