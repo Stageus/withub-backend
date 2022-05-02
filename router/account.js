@@ -4,7 +4,7 @@ const tokenVerify = require('../module/tokenVerify.js');
 const sendMail = require('../module/sendMail.js');
 const axios = require('axios');
 
-router.get('login', async(req, res) => {
+router.get('/login', async(req, res) => {
     const id = req.body.id;
     const pw = req.body.pw;
     const result = {
@@ -266,7 +266,7 @@ router.get('/pw/after', async(req, res) => {
     return res.send(result);
 });
 
-router.patch('pw/after', async(req, res) => {
+router.patch('/pw/after', async(req, res) => {
     const token = req.query.token;
     const pw = req.query.pw;
     const result = {
