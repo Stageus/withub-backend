@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const jwt = require('jsonwebtoken')
 const database = require('../module/database.js');
 const tokenVerify = require('../module/tokenVerify.js');
 const sendMail = require('../module/sendMail.js');
@@ -53,20 +54,20 @@ router.get('/login', async(req, res) => {
 });
 
 router.post('/mail/auth', async(req, res) => {
-    const email = req.body.email;
+    const id = req.body.id;
     const auth = req.body.auth;
     const token = req.body.token;
     const result = {
         success: false,
         message: '',
     }
-    if (!auth || !token) {
+    if (!id || !auth || !token) {
         result.message = '에러 발생. 다시 시도해 주세요.';
         return res.send(result);
     }
 
     const verify = await tokenVerify(token);
-    if (verify.token.email === email && verify.token.auth === auth) {
+    if (verify.token.id === id && verify.token.auth === auth) {
         result.success = true;
         result.message = '인증이 확인되었습니다.';
     }
@@ -77,16 +78,19 @@ router.post('/mail/auth', async(req, res) => {
 });
 
 router.post('/mail', async(req, res) => {
+    const id = req.body.id;
     const email = req.body.email;
     const result = {
         success: false,
         message: '',
         token: '',
     }
-    if (!email) {
+    if (!id || !email) {
         result.message = '에러 발생. 다시 시도해 주세요.';
         return res.send(result);
     }
+
+    console.log(email)
 
     const emailCheckQuery = 'SELECT COUNT(*) FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE email = $1);';
     const emailCheck = await database(emailCheckQuery, [email]);
@@ -96,7 +100,7 @@ router.post('/mail', async(req, res) => {
         return res.send(result);
     }
 
-    if (emailCheck.success && emailCheck.list !== []) {
+    if (emailCheck.success && emailCheck.list[0].count !== '0') {
         result.message = '이미 가입정보가 존재하는 이메일 입니다.';
         return res.send(result);
     }
@@ -106,19 +110,22 @@ router.post('/mail', async(req, res) => {
         auth += String(Math.floor(Math.random() * 10));
 
     const mailTitle = `[WITHUB] 회원가입 인증번호 메일입니다.`
-    const mailContents = `인증번호는 ${randomNumber} 입니다. 정확하게 입력해주세요.`;
+    const mailContents = `인증번호는 ${auth} 입니다. 정확하게 입력해주세요.`;
+    console.log(auth)
     sendMail(email, mailTitle, mailContents);
 
     const jwtToken = jwt.sign({
-        email: email,
+        id: id,
         auth: auth,
     }, process.env.ACCESS_KEY, {
         expiresIn: "14d",
         issuer: "stageus",
     });
     result.success = true;
-    result.meesage = '메일 전송 완료. 메일을 확인해주세요.';
+    result.message = '메일 전송 완료. 메일을 확인해주세요.';
     result.token = jwtToken;
+
+    console.log(result)
 
     return res.send(result);
 });
@@ -129,6 +136,7 @@ router.post('/duplicate/id', async(req, res) => {
         success: false,
         message: '',
     }
+    console.log(id);
 
     if (!id) {
         result.message = '에러 발생. 다시 시도해 주세요.';
@@ -514,7 +522,7 @@ router.patch('/area', async(req, res) => {
         result.message = 'DB 접근 실패. 다시 시도해 주세요.';
 
     return res.send(result);
-})
+});
 
 router.delete('', async(req, res) => {
     const token = req.body.token;
@@ -541,7 +549,7 @@ router.delete('', async(req, res) => {
 });
 
 router.get('', async(req, res) => {
-    // const token = req.query.token;
+    const token = req.query.token;
     const day = 1000 * 60 * 60 * 24;
     const result = {
         success: false,
@@ -553,102 +561,53 @@ router.get('', async(req, res) => {
         tips: [],
     }
 
-    // if (!token) {
-    //     result.message = '에러 발생. 다시 입력해 주세요.';
-    //     return res.send(result);
-    // }
-
-    // const verify = await tokenVerify(token);
-
-    const getRepoQuery = `SELECT committer, owner, name FROM account.repository AS r 
-                            INNER JOIN account.info AS i ON r.account_idx = i.account_idx WHERE r.account_idx = $1;`;
-    // const getRepo = await database(getRepoQuery, [verify.token.account_idx]);
-    const getRepo = await database(getRepoQuery, [1]);
-
-    if (!getRepo.success) {
-        result.message = 'DB 접근 오류. 다시 시도해 주세요.';
+    if (!token) {
+        result.message = '에러 발생. 다시 입력해 주세요.';
         return res.send(result);
     }
 
-    const committer = getRepo.list[0].committer;
+    const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
+    const account_idx = verify.token.account_idx;
+
+    const getPersonalQuery = `SELECT daily_commit, thirty_commit, commit_avg FROM account.info AS i 
+                                INNER JOIN account.area AS a ON i.area_idx = a.area_idx WHERE i.account_idx = $1`;
+    const getPersonal = await database(getPersonalQuery, [account_idx]);
+
+    if (!getPersonal.success) {
+        result.message = 'DB 접근 오류, 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    result.area_avg = parseInt(getPersonal.list[0].commit_avg);
+    result.today_commit = parseInt(getPersonal.list[0].daily_commit);
+    result.monthly_commit = getPersonal.list[0].thirty_commit.map((value, index) => {
+        const ago = new Date(Date.parse(today) - (29 - index) * day);
+        const tmp = Object();
+        tmp.date = `${String(ago.getMonth() + 1)}-${ago.getDate()}`;
+        tmp.commit = parseInt(value);
+        
+        return tmp;
+    });
 
-    const yesterday = new Date(Date.parse(today) - 1 * day);
-    const monthAgo = new Date(Date.parse(today) - 31 * day);
+    const getFriendCommitQuery = `SELECT daily_commit FROM account.info AS i INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1;`;
+    const getFriendCommit = await database(getFriendCommitQuery, [account_idx]);
 
-    const todayMM = String(today.getMonth() + 1).length === 1 ? `0${today.getMonth() + 1}` : today.getMonth() + 1;
-    const todayDD = String(today.getDate()).length === 1 ? `0${today.getDate()}` : today.getDate();
-    const todayString = `${today.getFullYear()}-${todayMM}-${todayDD}`;
-
-    for (let i = 0; i < 30; i++) {
-        const tmp = new Object();
-        const ago = new Date(Date.parse(today) - (29 - i) * day);
-        const mm = String(ago.getMonth() + 1).length === 1 ? `0${ago.getMonth() + 1}` : ago.getMonth() + 1;
-        const dd = String(ago.getDate()).length === 1 ? `0${ago.getDate()}` : ago.getDate();
-        const date = `${ago.getFullYear()}-${mm}-${dd}`;
-        tmp.date = date;
-        tmp.commit = 0;
-
-        result.monthly_commit.push(tmp);
-    }
-
-    for (const repo of getRepo.list) {
-        const response = await axios.get(`${process.env.GITHUB_URL}/repos/${repo.owner}/${repo.name}/commits?since=${monthAgo}&until=${today}`, {
-            headers: {
-                Authorization: process.env.GITHUB_TOKEN,
-            }
-        });
-
-        for (const data of response.data) {
-            if (data.commit.committer.name === committer) {
-                const commitDay = data.commit.committer.date.split('T')[0];
-                const idx = result.monthly_commit.findIndex(value => {
-                    return value.date === commitDay;
-                });
-                result.monthly_commit[idx].commit++;
-
-                if (todayString === commitDay)
-                    result.today_commit++;
-            }
-        }
-    }
-
-    const getFriendQuery = `SELECT committer, owner, name FROM account.repository AS r
-                            INNER JOIN account.info AS i ON r.account_idx = i.account_idx
-                            INNER JOIN account.friend AS f ON i.account_idx = f.account_idx WHERE r.account_idx = $1;`;
-    // const getFriend = await database(getFriendQuery, [verify.token.account_idx]);
-    const getFriend = await database(getFriendQuery, [1]);
-    let friendCommitSum = 0;
-
-    if (!getFriend.success) {
-        result.message = 'DB 접근 오류. 다시 시도해 주세요.';
-        return res.send(result);
-    }
-    
-    for (const repo of getFriend.list) {
-        const response = await axios.get(`${process.env.GITHUB_URL}/repos/${repo.owner}/${repo.name}/commits?since=${yesterday}&until=${today}`, {
-            headers: {
-                Authorization: process.env.GITHUB_TOKEN,
-            }
-        });
-
-        for (const data of response.data) {
-            if (data.commit.committer.name === repo.committer)
-                friendCommitSum++;
-        }
-    }
-
-    const getFriendCountQuery = `SELECT COUNT(*) FROM account.friend WHERE account_idx = $1;`;
-    // const getFriendCount = await database(getFriendCountQuery, [verify.token.account_idx]);
-    const getFriendCount = await database(getFriendCountQuery, [1]);
-
-    if (!getFriendCount.success) {
-        result.message = 'DB 접근 오류. 다시 시도해 주세요.';
+    if (!getFriendCommit.success) {
+        result.message = 'DB 접근 오류, 다시 시도해 주세요.';
         return res.send(result);
     }
 
-    result.friend_avg = friendCommitSum / parseInt(getFriendCount.list[0].count);
+    let sum = 0;
+    getFriendCommit.list[0].daily_commit.forEach(value => {
+        if (parseInt(value) !== -1)
+            sum += parseInt(value)
+    });
+    result.friend_avg = sum / getFriendCommit.list[0].daily_commit.length;
 
     const getTipsQuery = `SELECT img_url, url FROM content.tips ORDER BY RANDOM() LIMIT 4;`;
     const getTips = await database(getTipsQuery, []);
