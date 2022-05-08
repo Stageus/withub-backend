@@ -24,6 +24,8 @@ router.get('/rank/area', async(req, res) => {
         return res.send(result);
     }
     const account_idx = verify.token.account_idx;
+
+    // 작업 필요
 });
 
 router.get('/rank/friend', async(req, res) => {
@@ -93,7 +95,20 @@ router.get('/rank/friend', async(req, res) => {
 });
 
 router.get('', async(req, res) => {
+    const token = req.query.token;
+    const scroll_num = req.query.scroll_num;
+    const result = {
+        success: false,
+        message: '',
+        commits: [],
+    }
 
+    if (!token || !scroll_num) {
+        result.message = '서버 접속 오류. 재시도 해주세요.';
+        return res.send(result);
+    }
+
+    
 });
 
 module.exports = router;
