@@ -554,6 +554,7 @@ router.get('', async(req, res) => {
     const result = {
         success: false,
         message: '',
+        committer: '',
         today_commit: 0,
         monthly_commit: [],
         friend_avg: -1,
@@ -573,7 +574,7 @@ router.get('', async(req, res) => {
     }
     const account_idx = verify.token.account_idx;
 
-    const getPersonalQuery = `SELECT daily_commit, thirty_commit, commit_avg FROM account.info AS i 
+    const getPersonalQuery = `SELECT committer, daily_commit, thirty_commit, commit_avg FROM account.info AS i 
                                 INNER JOIN account.area AS a ON i.area_idx = a.area_idx WHERE i.account_idx = $1`;
     const getPersonal = await database(getPersonalQuery, [account_idx]);
 
@@ -583,6 +584,7 @@ router.get('', async(req, res) => {
     }
 
     const today = new Date();
+    result.committer = getPersonal.list[0].committer
     result.area_avg = parseInt(getPersonal.list[0].commit_avg);
     result.today_commit = parseInt(getPersonal.list[0].daily_commit);
     result.monthly_commit = getPersonal.list[0].thirty_commit.map((value, index) => {
@@ -594,7 +596,8 @@ router.get('', async(req, res) => {
         return tmp;
     });
 
-    const getFriendCommitQuery = `SELECT daily_commit FROM account.info AS i INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1;`;
+    const getFriendCommitQuery = `SELECT daily_commit FROM account.info AS i 
+                                INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1;`;
     const getFriendCommit = await database(getFriendCommitQuery, [account_idx]);
 
     if (!getFriendCommit.success) {
