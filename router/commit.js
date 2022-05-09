@@ -24,8 +24,48 @@ router.get('/rank/area', async(req, res) => {
         return res.send(result);
     }
     const account_idx = verify.token.account_idx;
+    
+    const dailyRankQuery = `SELECT nickname, daily_commit AS count FROM account.info 
+                            WHERE area_idx = (SELECT area_idx FROM account.info WHERE account_idx = $1) ORDER BY count DESC;`;
+    const dailyRank = await database(dailyRankQuery, [account_idx]);
+    if (!dailyRank.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
+        return res.send(result);
+    }
+    result.daily_rank = dailyRank.list[0];
 
-    // 작업 필요
+    const weeklyRankQuery = `SELECT b.nickname, SUM(a) AS count FROM 
+                            (SELECT nickname, unnest(weekly_commit) AS a FROM account.info 
+                            WHERE area_idx = (SELECT area_idx FROM account.info WHERE account_idx = $1)) AS b 
+                            GROUP BY b.nickname ORDER BY count DESC;`;
+    const weeklyRank = await database(weeklyRankQuery, [account_idx]);
+    if (!weeklyRank.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
+        return res.send(result);
+    }
+    result.weekly_rank = weeklyRank.list[0];
+
+    const monthlyRankQuery = `SELECT b.nickname, SUM(a) AS count 
+                                FROM (SELECT nickname, unnest(monthly_commit) AS a FROM account.info 
+                                WHERE area_idx = (SELECT area_idx FROM account.info WHERE account_idx = $1)) AS b 
+                                GROUP BY b.nickname ORDER BY count DESC;`; // 월간 커밋 수 반환
+    const monthlyRank = await database(monthlyRankQuery, [account_idx]);
+    if (!monthlyRank.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
+        return res.send(result);
+    }
+    result.monthly_rank = monthlyRank.list[0];
+    
+    const continuousRankQuery = `SELECT nickname, continuous_commit AS count FROM account.info 
+                                WHERE area_idx = (SELECT area_idx FROM account.info WHERE account_idx = $1) ORDER BY count DESC;`;
+    const continuousRank = await database(continuousRankQuery, [account_idx]);
+    if (!continuousRank.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
+        return res.send(result);
+    }
+    result.continuous_rank = continuousRank.list[0];
+
+    return res.send(result);
 });
 
 router.get('/rank/friend', async(req, res) => {
@@ -51,8 +91,8 @@ router.get('/rank/friend', async(req, res) => {
     }
     const account_idx = verify.token.account_idx;
     
-    const dailyRankQuery = `SELECT nickname, daily_commit FROM account.info AS i 
-                            INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1 ORDER BY daily_commit DESC;`;
+    const dailyRankQuery = `SELECT nickname, daily_commit AS count FROM account.info AS i 
+                            INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1 ORDER BY count DESC;`;
     const dailyRank = await database(dailyRankQuery, [account_idx]);
     if (!dailyRank.success) {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
@@ -63,7 +103,7 @@ router.get('/rank/friend', async(req, res) => {
     const weeklyRankQuery = `SELECT b.nickname, SUM(a) AS count FROM 
                             (SELECT nickname, unnest(weekly_commit) AS a FROM account.info AS i 
                             INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1) AS b 
-                            GROUP BY b.nickname ORDER BY total DESC`;
+                            GROUP BY b.nickname ORDER BY count DESC;`;
     const weeklyRank = await database(weeklyRankQuery, [account_idx]);
     if (!weeklyRank.success) {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
@@ -74,7 +114,7 @@ router.get('/rank/friend', async(req, res) => {
     const monthlyRankQuery = `SELECT b.nickname, SUM(a) AS count FROM 
                             (SELECT nickname, unnest(monthly_commit) AS a FROM account.info AS i 
                             INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1) AS b 
-                            GROUP BY b.nickname ORDER BY total DESC`; // 월간 커밋 수 반환
+                            GROUP BY b.nickname ORDER BY count DESC;`; // 월간 커밋 수 반환
     const monthlyRank = await database(monthlyRankQuery, [account_idx]);
     if (!monthlyRank.success) {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
@@ -82,8 +122,8 @@ router.get('/rank/friend', async(req, res) => {
     }
     result.monthly_rank = monthlyRank.list[0];
 
-    const continuousRankQuery = `SELECT nickname, continuous_commit FROM account.info AS i 
-                                INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1 ORDER BY continuous_commit DESC;`;
+    const continuousRankQuery = `SELECT nickname, continuous_commit AS count FROM account.info AS i 
+                                INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1 ORDER BY count DESC;`;
     const continuousRank = await database(continuousRankQuery, [account_idx]);
     if (!continuousRank.success) {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
@@ -96,19 +136,35 @@ router.get('/rank/friend', async(req, res) => {
 
 router.get('', async(req, res) => {
     const token = req.query.token;
-    const scroll_num = req.query.scroll_num;
     const result = {
         success: false,
         message: '',
         commits: [],
     }
 
-    if (!token || !scroll_num) {
+    if (!token) {
         result.message = '서버 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
 
-    
+    const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
+    const account_idx = verify.token.account_idx;
+
+    const getCommitQuery = `SELECT commit_list FROM account.commit WHERE account_idx = $1;`;
+    const getCommit = await database(getCommitQuery, [account_idx]);
+
+    if (!getCommit.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
+        return res.send(result);
+    }
+
+    result.commits = getCommit.list[0].commit_list;
+
+    return res.send(result);
 });
 
 module.exports = router;

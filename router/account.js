@@ -195,18 +195,17 @@ router.post('/committer', async(req, res) => {
         return res.send(result);
     }
 
-    const response = await axios.get(`${process.env.GITHUB_URL}/users/${committer}`, {
-        headers: {
-            Authorization: process.env.GITHUB_TOKEN,
-        }
-    });
-
-    if (response.data.login === committer) {
+    try {
+        const response = await axios.get(`${process.env.GITHUB_URL}/users/${committer}`, {
+            headers: {
+                Authorization: process.env.GITHUB_TOKEN,
+            }
+        });
         result.success = true;
         result.message = '사용 가능한 깃허브 닉네임 입니다.';
     }
-    else {
-        result.message = '유효하지 않은 깃허브 닉네임 입니다.'
+    catch (err) {
+        result.message = '유효하지 않은 깃허브 닉네임 입니다.';
     }
 
     return res.send(result);
