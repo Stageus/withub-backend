@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const tokenVerify = require('../module/tokenVerify.js');
-const database = requre('../module/database.js');
+const database = require('../module/database.js');
 
 router.get('/info', async(req, res) => {
     const token = req.query.token;
