@@ -56,7 +56,7 @@ router.get('/info', async(req, res) => {
 
     const getFriendCommitQuery = `SELECT * FROM account.info AS i 
                                     INNER JOIN account.friend AS f ON i.account_idx = f.following 
-                                    WHERE f.account_idx = (SELECT DISTINCT(account_idx) FROM account.info WHERE nickname='$1');`;
+                                    WHERE f.account_idx = (SELECT DISTINCT(account_idx) FROM account.info WHERE nickname = $1);`;
     const getFriendCommit = await database(getFriendCommitQuery, [nickname]);
 
     if (!getFriendCommit.success) {

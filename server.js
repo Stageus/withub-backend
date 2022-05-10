@@ -8,6 +8,7 @@ require('dotenv').config({ path: './.env' });
 
 const database = require('./module/database.js');
 const tokenVerify = require('./module/tokenVerify.js');
+const axios = require('axios')
 
 const corsOptions = {
     origin: '*',
@@ -33,22 +34,22 @@ app.use('/commit', commit);
 app.use('/friend', friend);
 app.use('/token', token);
 
-app.listen(port, (req, res) => {
+app.listen(port, async (req, res) => {
     console.log('server start at port', port);
 
-    const fiveMinuteUpdate = schedule.scheduleJob('0 0/15 * * * *', async() => {
-        console.log('15분')
-    });
+    // const fiveMinuteUpdate = schedule.scheduleJob('0 0/15 * * * *', async() => {
+    //     console.log('15분')
+    // });
 
-    const dailyUpdate = schedule.scheduleJob('0 0 15 1-31 * *', async() => {
-        console.log('매일');
-    });
+    // const dailyUpdate = schedule.scheduleJob('0 0 15 1-31 * *', async() => {
+    //     console.log('매일');
+    // });
 
-    const weeklyUpdate = schedule.scheduleJob('0 0 15 * * MON', async() => {
-        console.log('매주');
-    });
+    // const weeklyUpdate = schedule.scheduleJob('0 0 15 * * MON', async() => {
+    //     console.log('매주');
+    // });
 
-    const monthlyUpdate = schedule.scheduleJob('0 0 15 1 1-12 *', async() => {
-        console.log('매월');
-    });
+    // const monthlyUpdate = schedule.scheduleJob('0 0 15 1 1-12 *', async() => {
+    //     console.log('매월');
+    // }); 
 });
