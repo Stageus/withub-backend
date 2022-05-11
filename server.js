@@ -28,11 +28,13 @@ const account = require('./router/account.js');
 const commit = require('./router/commit.js');
 const friend = require('./router/friend.js');
 const token = require('./router/token.js');
+const info = require('./router/info.js');
 
 app.use('/account', account);
 app.use('/commit', commit);
 app.use('/friend', friend);
 app.use('/token', token);
+app.use('/info', info);
 
 app.listen(port, async (req, res) => {
     console.log('server start at port', port);
