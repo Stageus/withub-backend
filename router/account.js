@@ -232,7 +232,7 @@ router.post('/github', async(req, res) => {
     });
 
     result.message = '사용 불가능한 레포지토리 입니다.\n본인이 레포지토리의 contributor가 맞는지, 레포지토리의 정보가 틀리진 않은지 확인해 주세요.';
-    for (const user of response.data) {
+    for (const user of response.data) { // 배열 기반 for문 
         if (user.login === committer) {
             result.success = true;
             result.message = '사용 가능한 레포지토리 입니다.';

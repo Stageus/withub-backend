@@ -31,6 +31,12 @@ router.post('', async(req, res) => {
     const day = korea.getDay() === 0 ? 7 : korea.getDay();
     
     // const today = korea.toISOString().split('T')[0];
+    (weekly_commit = []).length = day;
+    weekly_commit.fill(0);
+    (monthly_commit = []).length = korea.getDate();
+    monthly_commit.fill(0);
+    (thirty_commit = []).length = 30;
+    thirty_commit.fill(0);
 
     const weekStart = new Date(Date.parse(korea) - (day - 1) * oneDay);
     weekStart.setHours(0, 0, 0, 0);
