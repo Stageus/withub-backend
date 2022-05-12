@@ -42,6 +42,7 @@ router.post('', async(req, res) => {
     weekStart.setHours(0, 0, 0, 0);
     const monthStart = new Date(Date.parse(korea));
     monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
     const thirtyStart = new Date(Date.parse(korea) - 30 * oneDay);
     thirtyStart.setHours(0, 0, 0, 0);
 
