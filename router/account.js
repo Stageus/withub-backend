@@ -354,8 +354,8 @@ router.post('/id', async(req, res) => {
         return res.send(result);
     }
 
-    if (emailCheck.success && emailCheck.list === []) {
-        result.message = '입력하신 이메일에 해당하는 회원정보가 없습니다.';
+    if (emailCheck.success && parseInt(emailCheck.list[0].count) === 0) {
+        result.message = '입력하신 정보에 해당하는 회원정보가 없습니다.';
         return res.send(result);
     }
 
@@ -364,7 +364,7 @@ router.post('/id', async(req, res) => {
         auth += String(Math.floor(Math.random() * 10));
 
     const mailTitle = `[WITHUB] 아이디찾기 인증번호 메일입니다.`
-    const mailContents = `인증번호는 ${randomNumber} 입니다. 정확하게 입력해주세요.`;
+    const mailContents = `인증번호는 ${auth} 입니다. 정확하게 입력해주세요.`;
     sendMail(email, mailTitle, mailContents);
 
     const jwtToken = jwt.sign({
