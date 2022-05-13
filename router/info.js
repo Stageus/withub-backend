@@ -28,6 +28,9 @@ router.post('', async(req, res) => {
     const cur = new Date();
     const UTC = cur.getTime() + (cur.getTimezoneOffset() * 60 * 1000);
     const korea = new Date(UTC + 9 * hour);
+    const tomorrow = new Date(Date.parse(korea) + oneDay);
+    tomorrow.setHours(0, 0, 0, 0);
+
     const day = korea.getDay() === 0 ? 7 : korea.getDay();
     
     // const today = korea.toISOString().split('T')[0];
@@ -45,6 +48,10 @@ router.post('', async(req, res) => {
     monthStart.setHours(0, 0, 0, 0);
     const thirtyStart = new Date(Date.parse(korea) - 30 * oneDay);
     thirtyStart.setHours(0, 0, 0, 0);
+
+    for (const commit of commits) {
+        const commitTime = new Date(commit.commit.committer.date);
+    }
 
     return res.send(result);
 });

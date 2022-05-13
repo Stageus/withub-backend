@@ -38,6 +38,7 @@ app.use('/info', info);
 
 app.listen(port, async (req, res) => {
     console.log('server start at port', port);
+    console.log(new Date(Date.parse('2022-05-12T14:26:09Z') + 9 * 60 * 60 * 1000));
 
     // const fiveMinuteUpdate = schedule.scheduleJob('0 0/15 * * * *', async() => {
     //     console.log('15분')
