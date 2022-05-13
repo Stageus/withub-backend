@@ -549,13 +549,12 @@ router.delete('', async(req, res) => {
 
 router.get('', async(req, res) => {
     const token = req.query.token;
-    const day = 1000 * 60 * 60 * 24;
     const result = {
         success: false,
         message: '',
         committer: '',
-        today_commit: 0,
-        monthly_commit: [],
+        daily_commit: -1,
+        thirty_commit: [],
         friend_avg: -1,
         area_avg: -1,
         tips: [],
@@ -573,47 +572,36 @@ router.get('', async(req, res) => {
     }
     const account_idx = verify.token.account_idx;
 
-    const getPersonalQuery = `SELECT committer, daily_commit, thirty_commit, commit_avg FROM account.info AS i 
-                                INNER JOIN account.area AS a ON i.area_idx = a.area_idx WHERE i.account_idx = $1`;
-    const getPersonal = await database(getPersonalQuery, [account_idx]);
-
-    if (!getPersonal.success) {
-        result.message = 'DB 접근 오류, 다시 시도해 주세요.';
+    const getFriendAVGQuery = `SELECT ROUND(CAST(AVG(a) AS NUMERIC), 1) FROM (SELECT daily_commit AS a FROM account.info AS i 
+                            INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1) AS b;`;
+    const getFriendAVG = await database(getFriendAVGQuery, [account_idx]);
+    if (!getFriendAVG.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
+    result.friend_avg = getFriendAVG.list[0].avg;
 
-    const today = new Date();
-    result.committer = getPersonal.list[0].committer
-    result.area_avg = parseInt(getPersonal.list[0].commit_avg);
-    result.today_commit = parseInt(getPersonal.list[0].daily_commit);
-    result.monthly_commit = getPersonal.list[0].thirty_commit.map((value, index) => {
-        const ago = new Date(Date.parse(today) - (29 - index) * day);
-        const tmp = Object();
-        tmp.date = `${String(ago.getMonth() + 1)}-${ago.getDate()}`;
-        tmp.commit = parseInt(value);
-        
-        return tmp;
-    });
-
-    const getFriendCommitQuery = `SELECT daily_commit FROM account.info AS i 
-                                INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1;`;
-    const getFriendCommit = await database(getFriendCommitQuery, [account_idx]);
-
-    if (!getFriendCommit.success) {
-        result.message = 'DB 접근 오류, 다시 시도해 주세요.';
+    const getAreaAVGQuery = `SELECT ROUND(CAST(AVG(a) AS NUMERIC), 1) FROM (
+                            SELECT daily_commit AS a FROM account.info WHERE area_idx = (SELECT area_idx FROM account.info WHERE account_idx = $1)) AS b;`;
+    const getAreaAVG = await database(getAreaAVGQuery, [account_idx])
+    if (!getAreaAVG.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
+    result.area_avg = getAreaAVG.list[0].avg;
 
-    let sum = 0;
-    getFriendCommit.list[0].daily_commit.forEach(value => {
-        if (parseInt(value) !== -1)
-            sum += parseInt(value)
-    });
-    result.friend_avg = sum / getFriendCommit.list[0].daily_commit.length;
+    const getInfoQuery = `SELECT committer, daily_commit, thirty_commit FROM account.info WHERE account_idx = $1;`;
+    const getInfo = await database(getInfoQuery, [account_idx]);
+    if (!getInfo.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
+        return res.send(result);
+    }
+    result.committer = getInfo.list[0].committer;
+    result.daily_commit = getInfo.list[0].daily_commit;
+    result.thirty_commit = getInfo.list[0].thirty_commit;
 
     const getTipsQuery = `SELECT img_url, url FROM content.tips ORDER BY RANDOM() LIMIT 4;`;
     const getTips = await database(getTipsQuery, []);
-
     if (!getTips.success) {
         result.message = 'DB 접근 오류. 다시 시도해 주세요.';
         return res.send(result);

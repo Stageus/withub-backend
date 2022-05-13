@@ -9,12 +9,11 @@ router.get('/info', async(req, res) => {
         success: false,
         message: '',
         committer: '',
-        friend_today: -1,
-        monthly_commit: [],
-        friend_avg: 0,
-        area_avg: 0,
-        my_total: 0,
-        friend_total: 0,
+        friend_daily: -1,
+        thirty_commit: [],
+        my_month_total: 0,
+        friend_month_total: 0,
+        repository: []
     }
 
     if (!token || !nickname) {
@@ -28,61 +27,36 @@ router.get('/info', async(req, res) => {
         return res.send(result);
     }
     const account_idx = verify.token.account_idx;
-    
-    const getInfoQuery = `SELECT committer, daily_commit, monthly_commit, thirty_commit, commit_avg FROM account.info AS i 
-                                INNER JOIN account.area AS a ON i.area_idx = a.area_idx WHERE i.nickname = $1`;
-    const getInfo = await database(getInfoQuery, [nickname]);
 
-    if (!getInfo.success) {
-        result.message = 'DB 접근 오류, 다시 시도해 주세요.';
+    const getFriendInfoQuery = `SELECT b.committer, b.daily_commit, b.thirty_commit, SUM(a) AS month_total FROM (
+                                SELECT committer, daily_commit, thirty_commit, unnest(monthly_commit) AS a FROM account.info WHERE nickname = $1) AS b 
+                                GROUP BY b.committer, b.daily_commit, b.thirty_commit;
+    `
+    const getFriendInfo = await database(getFriendInfoQuery, [nickname]);
+    if (!getFriendInfo.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
+    result.committer = getFriendInfo.list[0].committer;
+    result.friend_daily = getFriendInfo.list[0].daily_commit;
+    result.thirty_commit = getFriendInfo.list[0].thirty_commit;
+    result.friend_month_total = getFriendInfo.list[0].month_total;
 
-    result.area_avg = getInfo.list[0].commit_avg;
-    result.friend_today = getInfo.list[0].daily_commit;
-    result.committer = getInfo.list[0].committer;
-    result.monthly_commit = getInfo.list[0].thirty_commit.map((value, index) => {
-        const ago = new Date(Date.parse(today) - (29 - index) * day);
-        const tmp = Object();
-        tmp.date = `${String(ago.getMonth() + 1)}-${ago.getDate()}`;
-        tmp.commit = parseInt(value);
-        
-        return tmp;
-    });
-    const zero1 = 0;
-    result.friend_total = getInfo.list[0].monthly_commit.reduce((prev, cur) => {
-        prev + cur, zero1;
-    });
-
-    const getFriendCommitQuery = `SELECT * FROM account.info AS i 
-                                    INNER JOIN account.friend AS f ON i.account_idx = f.following 
-                                    WHERE f.account_idx = (SELECT DISTINCT(account_idx) FROM account.info WHERE nickname = $1);`;
-    const getFriendCommit = await database(getFriendCommitQuery, [nickname]);
-
-    if (!getFriendCommit.success) {
-        result.message = 'DB 접근 오류, 다시 시도해 주세요.';
+    const getUserInfoQuery = `SELECT SUM(a) AS month_total FROM (SELECT unnest(monthly_commit) AS a FROM account.info WHERE account_idx = $1) AS b;`
+    const getUserInfo = await database(getUserInfoQuery, [account_idx]);
+    if (!getUserInfo.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
+    result.my_month_total = getUserInfo.list[0].month_total;
 
-    let sum = 0;
-    getFriendCommit.list[0].daily_commit.forEach(value => {
-        if (parseInt(value) !== -1)
-            sum += parseInt(value)
-    });
-    result.friend_avg = sum / getFriendCommit.list[0].daily_commit.length;
-
-    const getMyTotalQuery = `SELECT monthly_commit FROM account.info WHERE account_idx = $1;`;
-    const getMyTotal = await database(getMyTotalQuery, [account_idx]);
-
-    if (!getMyTotal.success) {
-        result.message = 'DB 접근 오류, 다시 시도해 주세요.';
+    const getRepoQuery = `SELECT owner, name FROM account.repository WHERE account_idx = (SELECT account_idx FROM account.info WHERE nickname = $1);`
+    const getRepo = await database(getRepoQuery, [nickname]);
+    if (!getRepo.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-
-    const zero2 = 0;
-    result.my_total = getMyTotal.list[0].monthly_commit.reduce((prev, cur) => {
-        prev + cur, zero2;
-    });
+    result.repository = getRepo.list;
 
     return res.send(result);
 });
