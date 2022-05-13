@@ -557,7 +557,6 @@ router.get('', async(req, res) => {
         thirty_commit: [],
         friend_avg: -1,
         area_avg: -1,
-        tips: [],
     }
 
     if (!token) {
@@ -599,14 +598,6 @@ router.get('', async(req, res) => {
     result.committer = getInfo.list[0].committer;
     result.daily_commit = getInfo.list[0].daily_commit;
     result.thirty_commit = getInfo.list[0].thirty_commit;
-
-    const getTipsQuery = `SELECT img_url, url FROM content.tips ORDER BY RANDOM() LIMIT 4;`;
-    const getTips = await database(getTipsQuery, []);
-    if (!getTips.success) {
-        result.message = 'DB 접근 오류. 다시 시도해 주세요.';
-        return res.send(result);
-    }
-    result.tips = getTips.list;
 
     return res.send(result);
 });
