@@ -186,66 +186,6 @@ router.post('/duplicate/nickname', async(req, res) => {
     return res.send(result);
 });
 
-router.post('/committer', async(req, res) => {
-    const committer = req.body.committer;
-    const result = {
-        success: false,
-        message: '',
-    }
-
-    if (!committer) {
-        result.message = '에러 발생. 다시 시도해 주세요.';
-        return res.send(result);
-    }
-
-    try {
-        const response = await axios.get(`${process.env.GITHUB_URL}/users/${committer}`, {
-            headers: {
-                Authorization: process.env.GITHUB_TOKEN,
-            }
-        });
-        result.success = true;
-        result.message = '사용 가능한 깃허브 닉네임 입니다.';
-    }
-    catch (err) {
-        result.message = '유효하지 않은 깃허브 닉네임 입니다.';
-    }
-
-    return res.send(result);
-});
-
-router.post('/github', async(req, res) => {
-    const committer = req.body.committer;
-    const owner = req.body.owner;
-    const name = req.body.name;
-    const result = {
-        success: false,
-        message: '',
-    }
-
-    if (!committer || !owner || !name) {
-        result.message = '에러 발생. 다시 시도해 주세요.';
-        return res.send(result);
-    }
-
-    const response = await axios.get(`${process.env.GITHUB_URL}/repos/${owner}/${name}/contributors`, {
-        headers: {
-            Authorization: process.env.GITHUB_TOKEN,
-        }
-    });
-
-    result.message = '사용 불가능한 레포지토리 입니다.\n본인이 레포지토리의 contributor가 맞는지, 레포지토리의 정보가 틀리진 않은지 확인해 주세요.';
-    for (const user of response.data) { // 배열 기반 for문 
-        if (user.login === committer) {
-            result.success = true;
-            result.message = '사용 가능한 레포지토리 입니다.';
-            break;
-        }
-    }
-
-    return res.send(result);
-});
-
 router.get('/pw/after', async(req, res) => {
     const token = req.query.token;
     const pw = req.query.pw;
@@ -260,7 +200,7 @@ router.get('/pw/after', async(req, res) => {
     }
 
     const verify = await tokenVerify(token);
-    const checkPwQuery = 'SELECT pw FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE account_idx = $1);';
+    const checkPwQuery = 'SELECT pw FROM account.info WHERE account_idx = $1;';
     const checkPw = await database(checkPwQuery, [verify.token.account_idx]);
 
     if (!checkPw.success) {
@@ -317,7 +257,7 @@ router.post('/id/auth', async(req, res) => {
 
     const verify = await tokenVerify(token);
     if (verify.token.email === email && verify.token.auth === auth) {
-        const getIdQuery = `SELECT id FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE email = $1);`;
+        const getIdQuery = `SELECT id FROM account.info WHERE email = $1;`;
         const getId = await database(getIdQuery, [email]);
 
         if (getId.success && getId.list !== []) {
@@ -349,7 +289,7 @@ router.post('/id', async(req, res) => {
         return res.send(result);
     }
 
-    const emailCheckQuery = 'SELECT COUNT(*) FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE email = $1);';
+    const emailCheckQuery = 'SELECT COUNT(*) FROM account.info WHERE email = $1;';
     const emailCheck = await database(emailCheckQuery, [email]);
     
     if (!emailCheck.success) {
@@ -400,18 +340,15 @@ router.post('/pw/auth', async(req, res) => {
 
     const verify = await tokenVerify(token);
     if (verify.token.email === email && verify.token.auth === auth) {
-        const getPwQuery = `SELECT COUNT(*) FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE email = $1 AND id = $2)`;
+        const getPwQuery = `SELECT COUNT(*) FROM account.info WHERE email = $1 AND id = $2`;
         const getPw = await database(getPwQuery, [email, id]);
 
-        if (getPw.success && getPw.list !== []) {
+        if (getPw.success && parseInt(getPw.list[0].count) !== 0)
             result.success = true;
-        }
-        else if (getPw.success && getPw.list === []) {
+        else if (getPw.success && parseInt(getPw.list[0].count) === 0)
             result.message = '입력하신 정보에 해당하는 회원정보가 없습니다.';
-        }
-        else {
+        else
             result.message = 'DB 연결 오류. 재시도 해주세요.';
-        }
     }
     else
         result.message = '인증번호가 일치하지 않습니다.';
