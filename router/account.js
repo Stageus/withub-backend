@@ -606,7 +606,7 @@ router.post('', async(req, res) => {
     const id = req.body.id;
     const pw = req.body.pw;
     const nickname = req.body.nickname;
-    const email = req.body.string;
+    const email = req.body.email;
     const area = req.body.area;
     const committer = req.body.committer;
     const repository = req.body.repository;
@@ -620,7 +620,7 @@ router.post('', async(req, res) => {
         success: false,
         message: '',
     }
-
+    
     if (!id || !pw || !nickname || !email || !area || !committer || !repository) {
         result.message = '에러 발생. 다시 입력해 주세요.';
         return res.send(result);
