@@ -5,14 +5,17 @@ const tokenVerify = require('../module/tokenVerify.js');
 const sendMail = require('../module/sendMail.js');
 const axios = require('axios');
 
-router.get('/login', async(req, res) => {
+router.post('/login', async(req, res) => {
     const id = req.body.id;
     const pw = req.body.pw;
     const result = {
-        'success': false,
-        'token': '',
-        'message': '',
+        success: false,
+        token: '',
+        message: '',
     };
+
+    console.log(id);
+    console.log(pw);
 
     if (!id || !pw) {
         result.message = '입력하지 않은 정보가 있습니다.';
@@ -646,7 +649,7 @@ router.post('', async(req, res) => {
         return res.send(result);
     }
 
-    const insertUserQuery = `INSERT INTO account.info(area, id, pw, nickname, email, committer, avatar_url) VALUES ($1, $2, $3, $4, $5, $6, $7);`;
+    const insertUserQuery = `INSERT INTO account.info(area_idx, id, pw, nickname, email, committer, avatar_url) VALUES ($1, $2, $3, $4, $5, $6, $7);`;
     const insertUser = await database(insertUserQuery, [area, id, pw, nickname, email, committer, avatar_url]);
 
     if (insertUser.success) {
@@ -659,12 +662,15 @@ router.post('', async(req, res) => {
                 await database(insertRepoQuery, [getIdx.list[0].account_idx, repo.owner, repo.name]);
         }
         else {
+            console.log("여기");
             result.message = 'DB 접근 실패. 재시도 해주세요.'
         }
     }
     else {
+        console.log("저기");
         result.message = 'DB 접근 실패. 재시도 해주세요.'
     }
+    result.success = true;
 
     return res.send(result);
 });
