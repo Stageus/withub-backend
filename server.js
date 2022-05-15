@@ -3,12 +3,7 @@ const app = express();
 const port = 80;
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const schedule = require('node-schedule');
 require('dotenv').config({ path: './.env' });
-
-const database = require('./module/database.js');
-const tokenVerify = require('./module/tokenVerify.js');
-const axios = require('axios')
 
 const corsOptions = {
     origin: '*',
@@ -38,20 +33,4 @@ app.use('/info', info);
 
 app.listen(port, async (req, res) => {
     console.log('server start at port', port);
-
-    // const fiveMinuteUpdate = schedule.scheduleJob('0 0/15 * * * *', async() => {
-    //     console.log('15분')
-    // });
-
-    // const dailyUpdate = schedule.scheduleJob('0 0 15 1-31 * *', async() => {
-    //     console.log('매일');
-    // });
-
-    // const weeklyUpdate = schedule.scheduleJob('0 0 15 * * MON', async() => {
-    //     console.log('매주');
-    // });
-
-    // const monthlyUpdate = schedule.scheduleJob('0 0 15 1 1-12 *', async() => {
-    //     console.log('매월');
-    // }); 
 });

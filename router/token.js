@@ -2,7 +2,7 @@ const router = require('express').Router();
 const tokenVerify = require('../module/tokenVerify.js');
 
 router.get('', async(req, res) => {
-    const token = req.query.token; 
+    const token = req.query.token;
     const result = {
         success: false,
         message: '',
