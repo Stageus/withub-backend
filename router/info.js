@@ -97,12 +97,12 @@ router.post('', async(req, res) => {
             len = 0;
         }
     }
-    const continous_commit = Math.max(...monthly_commit);
+    const continuous_commit = Math.max(...monthly_commit);
 
     const updateQuery = `UPDATE account.info SET 
                         daily_commit = $1, weekly_commit = $2, monthly_commit = $3, thirty_commit = $4, continuous_commit = $5, commit_list = $6
                         WHERE account_idx = $7`
-    const update = await database(updateQuery, [daily_commit, weekly_commit, monthly_commit, thirtyStart, continous_commit, commit_list, account_idx]);
+    const update = await database(updateQuery, [daily_commit, weekly_commit, monthly_commit, JSON.stringify(thirty_commit), continuous_commit, JSON.stringify(commit_list), account_idx]);
 
     if (!update.success) {
         result.message = 'DB 접속 실패. 재시도 해주세요.';

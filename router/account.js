@@ -496,6 +496,7 @@ router.get('/repo', async(req, res) => {
         const tmp = Object();
         tmp.owner = value.owner;
         tmp.name = value.name;
+        
         result.repository.push(tmp);
     }
     result.success = true;
