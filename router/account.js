@@ -468,6 +468,7 @@ router.get('/repo', async(req, res) => {
     const result = {
         success: false,
         message: '',
+        committer: '',
         repository: [],
     }
 
@@ -483,13 +484,20 @@ router.get('/repo', async(req, res) => {
     }
     const account_idx = verify.token.account_idx;
     
-    const getRepoQuery = `SELECT owner, name FROM account.repository WHERE account_idx = $1;`;
+    const getRepoQuery = `SELECT owner, name, i.committer FROM account.repository AS r 
+                            INNER JOIN account.info AS i ON r.account_idx = i.account_idx WHERE i.account_idx = $1;`;
     const getRepo = await database(getRepoQuery, [account_idx]);
     if (!getRepo.success) {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-    result.repository = getRepo.list;
+    result.committer = getRepo.list[0].committer;
+    for (const value of getRepo.list) {
+        const tmp = Object();
+        tmp.owner = value.owner;
+        tmp.name = value.name;
+        result.repository.push(tmp);
+    }
     result.success = true;
 
     return res.send(result);
