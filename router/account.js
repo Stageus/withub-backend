@@ -497,6 +497,7 @@ router.get('', async(req, res) => {
         thirty_commit: [],
         friend_avg: -1,
         area_avg: -1,
+        repository: [],
     }
 
     if (!token) {
@@ -538,6 +539,15 @@ router.get('', async(req, res) => {
     result.committer = getInfo.list[0].committer;
     result.daily_commit = getInfo.list[0].daily_commit;
     result.thirty_commit = getInfo.list[0].thirty_commit;
+
+    const getRepoQuery = `SELECT owner, name FROM account.repository WHERE account_idx = $1;`;
+    const getRepo = await database(getRepoQuery, [account_idx]);
+    if (!getRepo.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
+        return res.send(result);
+    }
+    result.repository = getRepo.list;
+    result.success = true;
 
     return res.send(result);
 });
