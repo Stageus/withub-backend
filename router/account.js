@@ -88,14 +88,13 @@ router.post('/mail', async(req, res) => {
         message: '',
         token: '',
     }
+
     if (!id || !email) {
         result.message = '에러 발생. 다시 시도해 주세요.';
         return res.send(result);
     }
 
-    console.log(email)
-
-    const emailCheckQuery = 'SELECT COUNT(*) FROM account.info WHERE EXISTS (SELECT 1 FROM account.info WHERE email = $1);';
+    const emailCheckQuery = 'SELECT COUNT(*) FROM account.info WHERE email = $1;';
     const emailCheck = await database(emailCheckQuery, [email]);
     
     if (!emailCheck.success) {
@@ -103,7 +102,7 @@ router.post('/mail', async(req, res) => {
         return res.send(result);
     }
 
-    if (emailCheck.success && emailCheck.list[0].count !== '0') {
+    if (emailCheck.success && parseInt(emailCheck.list[0].count) !== 0) {
         result.message = '이미 가입정보가 존재하는 이메일 입니다.';
         return res.send(result);
     }
@@ -111,10 +110,9 @@ router.post('/mail', async(req, res) => {
     let auth = '';
     for (let i = 0; i < 4; i++)
         auth += String(Math.floor(Math.random() * 10));
-
+        
     const mailTitle = `[WITHUB] 회원가입 인증번호 메일입니다.`
     const mailContents = `인증번호는 ${auth} 입니다. 정확하게 입력해주세요.`;
-    console.log(auth)
     sendMail(email, mailTitle, mailContents);
 
     const jwtToken = jwt.sign({
@@ -127,8 +125,6 @@ router.post('/mail', async(req, res) => {
     result.success = true;
     result.message = '메일 전송 완료. 메일을 확인해주세요.';
     result.token = jwtToken;
-
-    console.log(result)
 
     return res.send(result);
 });
