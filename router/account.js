@@ -94,6 +94,8 @@ router.post('/mail', async(req, res) => {
         return res.send(result);
     }
 
+    console.log(id, email);
+
     const emailCheckQuery = 'SELECT COUNT(*) FROM account.info WHERE email = $1;';
     const emailCheck = await database(emailCheckQuery, [email]);
     
@@ -101,6 +103,8 @@ router.post('/mail', async(req, res) => {
         result.message = 'DB 접근 오류. 다시 시도해 주세요.';
         return res.send(result);
     }
+
+    console.log(emailCheck);
 
     if (emailCheck.success && parseInt(emailCheck.list[0].count) !== 0) {
         result.message = '이미 가입정보가 존재하는 이메일 입니다.';
@@ -110,6 +114,8 @@ router.post('/mail', async(req, res) => {
     let auth = '';
     for (let i = 0; i < 4; i++)
         auth += String(Math.floor(Math.random() * 10));
+
+    console.log(auth);
         
     const mailTitle = `[WITHUB] 회원가입 인증번호 메일입니다.`
     const mailContents = `인증번호는 ${auth} 입니다. 정확하게 입력해주세요.`;
@@ -574,7 +580,7 @@ router.get('', async(req, res) => {
     }
     result.committer = getInfo.list[0].committer;
     result.daily_commit = getInfo.list[0].daily_commit;
-    result.thirty_commit = getInfo.list[0].thirty_commit;
+    result.thirty_commit = getInfo.list[0].thirty_commit.reverse();
     result.success = true;
 
     return res.send(result);
