@@ -567,7 +567,6 @@ router.patch('/nickname', async(req, res) => {
     }
 
     result.success = true;
-    
     return res.send(result);
 });
 

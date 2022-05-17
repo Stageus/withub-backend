@@ -115,13 +115,19 @@ router.post('', async(req, res) => {
 
     const getIdxQuery = `SELECT account_idx FROM account.info WHERE nickname = $1;`;
     const getIdx = await database(getIdxQuery, [nickname]);
+    console.log(getIdx);
 
     if (!getIdx.success) {
         result.message = 'DB 접근 오류. 재시도 해주세요.';
         return res.send(result);
     }
 
-    const friendIdx = getidx.list[0].account_idx;
+    if (getIdx.list.length === 0) {
+        result.message = '존재하지 않는 회원입니다.';
+        return res.send(result);
+    }
+
+    const friendIdx = getIdx.list[0].account_idx;
     const insertFriendQuery = `INSERT INTO account.friend(account_idx, following) VALUES($1, $2);`;
     const insertFriend = await database(insertFriendQuery, [verify.token.account_idx, friendIdx]);
 
