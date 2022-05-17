@@ -65,7 +65,7 @@ router.get('/rank/area', async(req, res) => {
     }
     result.continuous_rank = continuousRank.list;
     result.success = true;
-    
+
     return res.send(result);
 });
 
@@ -156,7 +156,7 @@ router.get('', async(req, res) => {
     }
     const account_idx = verify.token.account_idx;
 
-    const getCommitQuery = `SELECT commit_list FROM account.commit WHERE account_idx = $1;`;
+    const getCommitQuery = `SELECT commit_list FROM account.info WHERE account_idx = $1;`;
     const getCommit = await database(getCommitQuery, [account_idx]);
 
     if (!getCommit.success) {
