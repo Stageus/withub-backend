@@ -70,6 +70,11 @@ router.post('/mail/auth', async(req, res) => {
     }
 
     const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
+
     if (verify.token.id === id && verify.token.auth === auth) {
         result.success = true;
         result.message = '인증이 확인되었습니다.';
@@ -94,8 +99,6 @@ router.post('/mail', async(req, res) => {
         return res.send(result);
     }
 
-    console.log(id, email);
-
     const emailCheckQuery = 'SELECT COUNT(*) FROM account.info WHERE email = $1;';
     const emailCheck = await database(emailCheckQuery, [email]);
     
@@ -103,8 +106,6 @@ router.post('/mail', async(req, res) => {
         result.message = 'DB 접근 오류. 다시 시도해 주세요.';
         return res.send(result);
     }
-
-    console.log(emailCheck);
 
     if (emailCheck.success && parseInt(emailCheck.list[0].count) !== 0) {
         result.message = '이미 가입정보가 존재하는 이메일 입니다.';
@@ -114,8 +115,6 @@ router.post('/mail', async(req, res) => {
     let auth = '';
     for (let i = 0; i < 4; i++)
         auth += String(Math.floor(Math.random() * 10));
-
-    console.log(auth);
         
     const mailTitle = `[WITHUB] 회원가입 인증번호 메일입니다.`
     const mailContents = `인증번호는 ${auth} 입니다. 정확하게 입력해주세요.`;
@@ -141,7 +140,6 @@ router.post('/duplicate/id', async(req, res) => {
         success: false,
         message: '',
     }
-    console.log(id);
 
     if (!id) {
         result.message = '에러 발생. 다시 시도해 주세요.';
@@ -202,6 +200,10 @@ router.get('/pw/after', async(req, res) => {
     }
 
     const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
     const checkPwQuery = 'SELECT pw FROM account.info WHERE account_idx = $1;';
     const checkPw = await database(checkPwQuery, [verify.token.account_idx]);
 
@@ -232,6 +234,10 @@ router.patch('/pw/after', async(req, res) => {
     }
 
     const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
     const updatePwQuery = 'UPDATE account.info SET pw = $1 WHERE account_idx = $2;';
     const updatePw = await database(updatePwQuery, [pw, verify.token.account_idx]);
 
@@ -258,6 +264,11 @@ router.post('/id/auth', async(req, res) => {
     }
 
     const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
+
     if (verify.token.email === email && verify.token.auth === auth) {
         const getIdQuery = `SELECT id FROM account.info WHERE email = $1;`;
         const getId = await database(getIdQuery, [email]);
@@ -341,6 +352,11 @@ router.post('/pw/auth', async(req, res) => {
     }
 
     const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
+
     if (verify.token.email === email && verify.token.auth === auth) {
         const getPwQuery = `SELECT COUNT(*) FROM account.info WHERE email = $1 AND id = $2`;
         const getPw = await database(getPwQuery, [email, id]);
@@ -429,6 +445,12 @@ router.patch('/pw', async(req, res) => {
     }
 
     const verify = await tokenVerify(token);
+
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
+
     const updatePwQuery = 'UPDATE account.info SET pw = $1 WHERE email = $2 AND id = $3;';
     const updatePw = await database(updatePwQuery, [pw, verify.token.email, verify.token.id]);
 
@@ -454,6 +476,11 @@ router.patch('/area', async(req, res) => {
     }
 
     const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
+
     const updateAreaQuery = 'UPDATE account.info SET area_idx = $1 WHERE account_idx = $2;';
     const updateArea = await database(updateAreaQuery, [area, verify.token.account_idx]);
 
@@ -506,6 +533,44 @@ router.get('/repo', async(req, res) => {
     return res.send(result);
 });
 
+router.patch('/nickname', async(req, res) => {
+    const nickname = req.body.nickname;
+    const token = req.body.token;
+    const result = {
+        success: false,
+        message: '',
+    }
+
+    if (!nickname || !token) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const nicknameRegexp = /^[a-zA-Z가-힣0-9]{2,10}$/; // 2~10자의 한글, 영어, 숫자
+    if (!nicknameRegexp.test(nickname)) {
+        result.message = '닉네임은 2~10자의 한글, 영어, 숫자로만 이루어져야 합니다.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
+
+    const patchNicknameQuery = `UPDATE account.info SET nickname = $1 WHERE account_idx = $2;`;
+    const patchNickname = await database(patchNicknameQuery, [nickname, verify.token.account_idx]);
+
+    if (!patchNickname.success) {
+        result.message = 'DB 접속 오류, 재시도 해주세요.';
+        return res.send(result);
+    }
+
+    result.success = true;
+    
+    return res.send(result);
+});
+
 router.delete('', async(req, res) => {
     const token = req.body.token;
     const result = {
@@ -519,6 +584,11 @@ router.delete('', async(req, res) => {
     }
 
     const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
+
     const deleteUserQuery = 'DELETE FROM account.info WHERE account_idx = $1;';
     const deleteUser = await database(deleteUserQuery, [verify.token.account_idx]);
 
