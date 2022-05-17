@@ -570,6 +570,40 @@ router.patch('/nickname', async(req, res) => {
     return res.send(result);
 });
 
+router.get('/info', async(req, res) => {
+    const token = req.query.token;
+    const result = {
+        success: false,
+        message: '',
+        avatar_url: '',
+        nickname: '',
+    }
+
+    if (!token) {
+        result.message = '에러 발생. 다시 시도해 주세요.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
+
+    const getInfoQuery = `SELECT nickname, avatar_url FROM account.info WHERE account_idx = $1;`;
+    const getInfo = await database(getInfoQuery, [verify.token.account_idx]);
+
+    if (!getInfo.success) {
+        result.message = 'DB 접속 오류, 재시도 해주세요.';
+        return res.send(result);
+    }
+
+    result.avatar_url = getInfo.list[0].avatar_url;
+    result.nickname = getInfo.list[0].nickname;
+    result.success = true;
+    return res.send(result);
+})
+
 router.delete('', async(req, res) => {
     const token = req.body.token;
     const result = {
