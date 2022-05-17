@@ -219,8 +219,8 @@ router.get('/pw/after', async(req, res) => {
 });
 
 router.patch('/pw/after', async(req, res) => {
-    const token = req.query.token;
-    const pw = req.query.pw;
+    const token = req.body.token;
+    const pw = req.body.pw;
     const result = {
         success: false,
         message: '',
@@ -561,7 +561,8 @@ router.get('', async(req, res) => {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-    result.friend_avg = getFriendAVG.list[0].avg;
+    
+    getFriendAVG.list[0].round === null ? -1 : result.friend_avg = getFriendAVG.list[0].round;
 
     const getAreaAVGQuery = `SELECT ROUND(CAST(AVG(a) AS NUMERIC), 1) FROM (
                             SELECT daily_commit AS a FROM account.info WHERE area_idx = (SELECT area_idx FROM account.info WHERE account_idx = $1)) AS b;`;
@@ -570,7 +571,7 @@ router.get('', async(req, res) => {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-    result.area_avg = getAreaAVG.list[0].avg;
+    getAreaAVG.list[0].round === null ? -1 : result.area_avg = getAreaAVG.list[0].round;
 
     const getInfoQuery = `SELECT committer, daily_commit, thirty_commit FROM account.info WHERE account_idx = $1;`;
     const getInfo = await database(getInfoQuery, [account_idx]);
@@ -582,6 +583,8 @@ router.get('', async(req, res) => {
     result.daily_commit = getInfo.list[0].daily_commit;
     result.thirty_commit = getInfo.list[0].thirty_commit.reverse();
     result.success = true;
+
+    console.log(result);
 
     return res.send(result);
 });

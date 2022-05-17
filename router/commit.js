@@ -32,7 +32,7 @@ router.get('/rank/area', async(req, res) => {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-    result.daily_rank = dailyRank.list[0];
+    result.daily_rank = dailyRank.list;
 
     const weeklyRankQuery = `SELECT b.nickname, SUM(a) AS count FROM 
                             (SELECT nickname, unnest(weekly_commit) AS a FROM account.info 
@@ -43,7 +43,7 @@ router.get('/rank/area', async(req, res) => {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-    result.weekly_rank = weeklyRank.list[0];
+    result.weekly_rank = weeklyRank.list;
 
     const monthlyRankQuery = `SELECT b.nickname, SUM(a) AS count 
                                 FROM (SELECT nickname, unnest(monthly_commit) AS a FROM account.info 
@@ -54,7 +54,7 @@ router.get('/rank/area', async(req, res) => {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-    result.monthly_rank = monthlyRank.list[0];
+    result.monthly_rank = monthlyRank.list;
     
     const continuousRankQuery = `SELECT nickname, continuous_commit AS count FROM account.info 
                                 WHERE area_idx = (SELECT area_idx FROM account.info WHERE account_idx = $1) ORDER BY count DESC;`;
@@ -63,8 +63,9 @@ router.get('/rank/area', async(req, res) => {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-    result.continuous_rank = continuousRank.list[0];
-
+    result.continuous_rank = continuousRank.list;
+    result.success = true;
+    
     return res.send(result);
 });
 
@@ -98,7 +99,7 @@ router.get('/rank/friend', async(req, res) => {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-    result.daily_rank = dailyRank.list[0];
+    result.daily_rank = dailyRank.list;
 
     const weeklyRankQuery = `SELECT b.nickname, SUM(a) AS count FROM 
                             (SELECT nickname, unnest(weekly_commit) AS a FROM account.info AS i 
@@ -109,7 +110,7 @@ router.get('/rank/friend', async(req, res) => {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-    result.weekly_rank = weeklyRank.list[0];
+    result.weekly_rank = weeklyRank.list;
 
     const monthlyRankQuery = `SELECT b.nickname, SUM(a) AS count FROM 
                             (SELECT nickname, unnest(monthly_commit) AS a FROM account.info AS i 
@@ -120,7 +121,7 @@ router.get('/rank/friend', async(req, res) => {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-    result.monthly_rank = monthlyRank.list[0];
+    result.monthly_rank = monthlyRank.list;
 
     const continuousRankQuery = `SELECT nickname, continuous_commit AS count FROM account.info AS i 
                                 INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1 ORDER BY count DESC;`;
@@ -129,7 +130,8 @@ router.get('/rank/friend', async(req, res) => {
         result.message = 'DB 접속 오류. 재시도 해주세요.';
         return res.send(result);
     }
-    result.continuous_rank = continuousRank.list[0];
+    result.continuous_rank = continuousRank.list;
+    result.success = true;
 
     return res.send(result);
 });
@@ -163,6 +165,7 @@ router.get('', async(req, res) => {
     }
 
     result.commits = getCommit.list[0].commit_list;
+    result.success = true;
 
     return res.send(result);
 });
