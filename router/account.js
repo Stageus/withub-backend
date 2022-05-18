@@ -684,8 +684,6 @@ router.get('', async(req, res) => {
     result.thirty_commit = getInfo.list[0].thirty_commit.reverse();
     result.success = true;
 
-    console.log(result);
-
     return res.send(result);
 });
 

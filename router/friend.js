@@ -185,7 +185,7 @@ router.delete('', async(req, res) => {
         return res.send(result);
     }
 
-    const friendIdx = getidx.list[0].account_idx;
+    const friendIdx = getIdx.list[0].account_idx;
     const deleteFriendQuery = `DELETE FROM account.friend WHERE account_idx = $1 AND following = $2;`;
     const deleteFriend = await database(deleteFriendQuery, [verify.token.account_idx, friendIdx]);
 
