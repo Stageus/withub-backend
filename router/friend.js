@@ -140,7 +140,7 @@ router.post('', async(req, res) => {
         return res.send(result);
     }
 
-    if (getIdx.list.length !== 0) {
+    if (friendDup.list.length !== 0) {
         result.message = '이미 친구로 등록된 회원입니다.';
         return res.send(result);
     }
