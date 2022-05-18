@@ -14,9 +14,6 @@ router.post('/login', async(req, res) => {
         message: '',
     };
 
-    console.log(id);
-    console.log(pw);
-
     if (!id || !pw) {
         result.message = '입력하지 않은 정보가 있습니다.';
         return res.send(result);

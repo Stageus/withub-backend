@@ -79,8 +79,8 @@ router.get('', async(req, res) => {
         return res.send(result);
     }
 
-    const query = `SELECT nickname, avatar_url FROM account.info AS i 
-                    INNER JOIN account.friend AS f ON i.account_idx = f.account_idx WHERE i.account_idx = 1;`;
+    const query = `SELECT nickname, avatar_url FROM account.info AS i
+                    INNER JOIN account.friend AS f ON i.account_idx = f.following WHERE f.account_idx = $1;`;
     const queryResult = await database(query, [verify.token.account_idx]);
     
     if (!queryResult.success) {
@@ -115,10 +115,14 @@ router.post('', async(req, res) => {
 
     const getIdxQuery = `SELECT account_idx FROM account.info WHERE nickname = $1;`;
     const getIdx = await database(getIdxQuery, [nickname]);
-    console.log(getIdx);
-
+    
     if (!getIdx.success) {
         result.message = 'DB 접근 오류. 재시도 해주세요.';
+        return res.send(result);
+    }
+
+    if (getIdx.list[0].account_idx === verify.token.account_idx) {
+        result.message = '나 자신은 영원한 인생의 친구입니다.';
         return res.send(result);
     }
 
@@ -126,8 +130,21 @@ router.post('', async(req, res) => {
         result.message = '존재하지 않는 회원입니다.';
         return res.send(result);
     }
-
     const friendIdx = getIdx.list[0].account_idx;
+
+    const friendDupQuery = `SELECT friend_idx FROM account.friend WHERE account_idx = $1 AND following = $2;`;
+    const friendDup = await database(friendDupQuery, [verify.token.account_idx, friendIdx]);
+
+    if (!friendDup.success) {
+        result.message = 'DB 접근 오류. 재시도 해주세요.';
+        return res.send(result);
+    }
+
+    if (getIdx.list.length !== 0) {
+        result.message = '이미 친구로 등록된 회원입니다.';
+        return res.send(result);
+    }
+
     const insertFriendQuery = `INSERT INTO account.friend(account_idx, following) VALUES($1, $2);`;
     const insertFriend = await database(insertFriendQuery, [verify.token.account_idx, friendIdx]);
 
