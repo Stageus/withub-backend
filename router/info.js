@@ -79,7 +79,7 @@ router.post('', async(req, res) => {
             thirty_commit[dayDiff].commit++;
             const tmp = new Object();
             tmp.date = commitTime.toISOString().split('T')[0];
-            tmp.time = commitTime.toISOString().split('T')[0].split('.')[0];
+            tmp.time = commitTime.toISOString().split('T')[1].split('.')[0];
             tmp.repository = `${commit.commit.url.split('/')[4]}/${commit.commit.url.split('/')[5]}`;
             tmp.commit_message = commit.commit.message;
             tmp.sha = commit.sha;
