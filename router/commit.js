@@ -164,7 +164,7 @@ router.get('', async(req, res) => {
         return res.send(result);
     }
 
-    result.commits = getCommit.list[0].commit_list;
+    result.commits = getCommit.list[0].commit_list.reverse();
     result.success = true;
 
     return res.send(result);
