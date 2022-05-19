@@ -3,8 +3,8 @@ const database = require('../module/database.js');
 const tokenVerify = require('../module/tokenVerify.js');
 
 const cmp = (a, b) => {
-    const aDate = new Date(a.date);
-    const bDate = new Date(b.date);
+    const aDate = new Date(`${a.date}T${a.time}`);
+    const bDate = new Date(`${b.date}T${b.time}`);
 
     return aDate.getTime() - bDate.getTime();
 }
