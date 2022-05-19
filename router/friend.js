@@ -39,7 +39,7 @@ router.get('/info', async(req, res) => {
     }
     result.committer = getFriendInfo.list[0].committer;
     result.friend_daily = getFriendInfo.list[0].daily_commit;
-    result.thirty_commit = getFriendInfo.list[0].thirty_commit;
+    result.thirty_commit = getFriendInfo.list[0].thirty_commit.reverse();
     result.friend_month_total = getFriendInfo.list[0].month_total;
 
     const getUserInfoQuery = `SELECT SUM(a) AS month_total FROM (SELECT unnest(monthly_commit) AS a FROM account.info WHERE account_idx = $1) AS b;`
