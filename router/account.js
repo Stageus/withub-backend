@@ -530,6 +530,43 @@ router.get('/repo', async(req, res) => {
     return res.send(result);
 });
 
+router.patch('/repo', async(req, res) => {
+    const token = req.body.token;
+    const repository = req.body.repository;
+    const result = {
+        success: false,
+        message: '',
+    }
+
+    if (!token || !repository) {
+        result.message = '에러 발생. 다시 입력해 주세요.';
+        return res.send(result);
+    }
+
+    const verify = await tokenVerify(token);
+    if (!verify.success) {
+        result.message = verify.message;
+        return res.send(result);
+    }
+    const account_idx = verify.token.account_idx;
+
+    const insertRepoQuery = `INSERT INTO account.repository(account_idx, owner, name) VALUES ($1, $2, $3);`
+    for (const repo of repository) {
+        const insertRepo = await database(insertRepoQuery, [account_idx, repo.owner, repo.name]);
+
+        if (!insertRepo.success) {
+            if (insertRepo.code === '23505')
+                continue;
+
+            result.message = 'DB 접속 오류. 재시도 해주세요.';
+            return res.send(result);
+        }
+    }
+        
+    result.success = true;
+    return res.send(result);
+});
+
 router.patch('/nickname', async(req, res) => {
     const nickname = req.body.nickname;
     const token = req.body.token;
