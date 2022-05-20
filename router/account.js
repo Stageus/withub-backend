@@ -530,7 +530,7 @@ router.get('/repo', async(req, res) => {
     return res.send(result);
 });
 
-router.patch('/repo', async(req, res) => {
+router.put('/repo', async(req, res) => {
     const token = req.body.token;
     const repository = req.body.repository;
     const result = {
