@@ -550,6 +550,14 @@ router.patch('/repo', async(req, res) => {
     }
     const account_idx = verify.token.account_idx;
 
+    const deleteRepoQuery = `DELETE FROM account.repository WHERE account_idx = $1`;
+    const deleteRepo = await database(deleteRepoQuery, [account_idx]);
+
+    if (!deleteRepo.success) {
+        result.message = 'DB 접속 오류. 재시도 해주세요.';
+        return res.send(result);
+    }
+
     const insertRepoQuery = `INSERT INTO account.repository(account_idx, owner, name) VALUES ($1, $2, $3);`
     for (const repo of repository) {
         const insertRepo = await database(insertRepoQuery, [account_idx, repo.owner, repo.name]);
